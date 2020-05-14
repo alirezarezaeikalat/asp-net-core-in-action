@@ -1,0 +1,26 @@
+//////////// Chapter 2 //////////////
+
+1. .csproj file is like package.json in node but in the format of xml files
+
+2. Things that included in .csproj file:
+	a. type of project in project tag
+	b. platform that the project is built for
+	c. NuGet packages (using packageReference tag)
+
+3. A lot of places ASP.NET core uses builder design pattern(for example in the 
+program.cs file)
+
+4. Program.cs is used to configure infrastructure that rarely changes over the life of
+project.
+
+4. when we configure IHostBuilder the instance of IHostBuilder call the configureServices
+and Configure function in the startup.cs
+
+5. Serives in ASP.NET core:  service refers to any class that provides functionality to an application and could be classes exposed by a library or code you’ve written for your application.
+
+6. IWebHostEnvironment in Configure function in startup.cs contains info that determined by IHostBuilder in program.cs(It has info about ContentRootPath, WebRootPath, Enviroment name)
+
+7. Views in shared folder can be called by any controller.
+
+8. When we using view() helper function in actions, by default it searches the controller name folder in the view folder, if it is not exist it goes to shared folder.
+you can also provide absolute path to the view helper function 

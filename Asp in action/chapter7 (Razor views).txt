@@ -1,0 +1,97 @@
+
+/////// Chapter 7 ///////
+
+1. The ViewResult object can contain the view model and the name of the view template
+ to render.
+
+2. Inheriting from Controller base class makes the View helper method available.
+	view helper methods just return ViewResult object:
+		return view(viewmodel,absolute path)
+
+3. if you define a path for the view in action method, it is going to look for that 
+	path, and if it not exist, it is going to throw InavlidOperationException, but
+	if you don't define a path, it is going to look for in views/{controller} folder
+	then look in views/shared folder for that action name
+
+3. Passing data to view from action in order of:
+	a. View model
+	b. ViewData: This a dictionary of objects with string keys.
+	c. ViewBag: A version of the ViewData that uses C# dynamic objects instead of
+string keys
+	d. HttpContext
+
+4. It is always good to use view model for sending data to the view from action,
+	but in some cases it is inevitable to use ViewData or ViewBag, for example when
+	you want to pass data to the _layout:
+	ViewData["title"] = 'Homepage'
+
+5. you have to define the type of view model in razor template when passing view model
+ to the template, and use it with Model property:
+	@model <type>
+
+	to use view model properties:
+	@Model.name
+
+6. directive: is a statement in razor file that changes the way the template is 
+parsed or compiled. another directive is @using {namespace}
+
+7. When you writing c# codes @... the space is the end of statement (Be careful).
+	when the statement has a white space in it, you must wrap it in ()
+
+8. when you pass html code from view model to the view, the razor when wants to parse
+	them automatically run htmlspecialchars() for that string, so if you have the html
+	code in that string, they are not going to apply, and they just show as a string:
+	for example: 
+		this string "<strong> check the oil </strong>" change to 
+		"&lt;strong&gt;Check oil&lt;/strong&gt;"
+
+ If you want to write html code with c# in razor pages
+	(for example load html code from view model) 
+	you can use Html property and raw method: Html.raw(string)
+
+[ATTENTION]
+	There is serious risk in doing so
+
+9. The action first looks for the view in Views/{controller name folder}/{action name.cshtml}
+ if it is not available looks in shared folder
+
+10. every layout must call @RenderBody() function just once.
+
+11. we can add content of view page to layout in two ways:
+	a. @RenderBody();
+	b. @RenderSection("section name", required: true): 
+		you have to define section part with name in the view page:
+		@section Sidebar{
+			<p>This is the sidebar content</p>
+		} 
+
+	if we use @RenderBody and @RenderSection in a same file, @RenderBody function
+	 Renders all the content from a view that isn’t part of a section
+		@{
+			Layout = "_Layout";
+		}
+		<div class="main-content">
+			@RenderBody()
+		</div>
+		<div class="side-bar">
+			@RenderSection("Sidebar", required: true)
+		</div>
+		@RenderSection("Scripts", required: false)
+
+
+11. You can set the layout for the razor page:
+@ {
+	Layout = "_layout";
+	ViewData["title"] = "Home page";
+}
+
+12. It is possible to load partial views using:
+	 @Html.PartialAsync("partial name" , view model)
+
+13. If you want to add some directives to all view files,
+ like @using appName or @using appName.Models or @addTagHelper *,
+  Microsoft.AspNetCore.Mvc.TagHelpers, use this directives in _ViewImports.cshtml
+
+14. If you want to run some codes for every views, put that codes in _ViewStart.cshtml.
+	If you put these files in the root of View folderthey are going to apply to every
+ 	view page except the the partial views
