@@ -176,3 +176,23 @@ invocation  -> filters          filter
                 // method body
             }
         }
+
+    ////////// a. Resource filters //////////
+
+    15. resource filters are useful when you want to ensure the filter runs early in
+        the pipeline, before model binding.
+
+    16. The ASP.NET Core framework includes a few different implementations of
+        resource filters you can use in your apps, for example:
+
+        a. ConsumesAttribute: Can be used to restrict the allowed formats an action
+            method can accept. If your action is decorated with [Consumes("application/
+            json")] but the client sends the request as XML, then the resource filter will
+            short-circuit the pipeline and return a 415 Unsupported Media Type response.
+        
+        b. DisableFormValueModelBindingAttribute: This filter prevents model binding
+            from binding to form data in the request body. This can be useful if
+            you know an action method will be handling large file uploads that you
+            need to manage manually yourself. The resource filters run before model
+            binding, so you can disable the model binding for a single action in
+            this way.
