@@ -1,0 +1,346 @@
+1. Filters are one way to avoid code duplication.
+
+2.  Any application that has the concept of users will use authorization filters as a
+    minimum, but filters are much more powerful than this single use case
+
+3. Without filters, you’d need to include the same code to check for a logged-in user
+    at the start of each specific action method. With this approach, MvcMiddleware
+    would still execute the model binding and validation, even if the user were not
+    logged in.
+
+4. There are five type of filters, and you can use them, based on your functionality:
+        (Authorization, Resource, action, exception, result)
+
+                Request                  Response
+                   |                         |
+            Authorization   ->               |
+                   |                         |
+                   ------Resource filters------
+                   |                         |
+            model binding                    |
+                   |                         |
+action    <-   action       ->  exception -> | 
+invocation  -> filters          filter
+        
+                  |     
+                   ------ Result filter ------
+                  |                          |
+                  --- IActionResultExecution -- 
+
+5. How to choose between middlewares and filters:
+    
+    middlewares are more general, and will be run for every requests, but filters
+    are more specific, and you can use in specific action, or using constructor of
+    certain controller, or using modelstate in actions.
+
+6. You can implements filters by implementing these interfaces with POCO CLASSES:
+
+    a. Authorization filters: IAuthorizationFilter or IAsyncAuthorizationFilter
+    b. Resource filters: IResourceFilter or IAsyncResourceFilter
+    c. Action filters: IActionFilter or IAsyncActionFilter or ActionFilterAttribute
+    d. Exception filters: IExceptionFilter or IAsyncExceptionFilter
+    e. Result filters: IResultFilter or IAsyncResultFilter
+[ATTENTION]
+    if you implement both of the sync and async filters, only the async one will work.
+
+7. Example of using POCO for the IResourceFilter:
+
+    public class LogResourceFilter : Attribute, IResourceFilter
+    {
+        // the context contains HttpContex, routing details, and info about
+        // current action
+        public void OnResourceExecuting(ResourceExecutingContext context)  
+        {
+            Console.WriteLine("Executing!");
+        }
+        public void OnResourceExecuted(ResourceExecutedContext context)
+        {
+            Console.WriteLine("Executed”");
+        }
+    }
+
+8. In async version we should only implement one function: 
+
+        public class LogAsyncResourceFilter : Attribute, IAsyncResourceFilter
+        {
+            public async Task OnResourceExecutionAsync(
+            ResourceExecutingContext context,
+            ResourceExecutionDelegate next)
+            {
+                Console.WriteLine("Executing async!");
+                ResourceExecutedContext executedContext = await next();
+                Console.WriteLine("Executed async!");
+            }
+        }
+
+9. You can apply filters to a single action, to a controller and apply it globally.
+    By inheriting from Attribute class in filters we can use them just like 
+    attributes: 
+
+    a. apply filter to a single action: 
+
+        [LogResourceFilter]
+        public IActionResult Index()
+        {
+            return View();
+        }
+
+    b. apply filer to the controller (every actions in that controller going to 
+        use this filter):
+        
+        [LogResourceFilter]
+        public class HomeController : Controller
+        {
+            public IActionResult Index ()
+            {
+                return View();
+            }
+            public IActionResult SendInvoice()
+            {
+                return View();
+            }
+        }
+
+    c. To apply a filter globally we can use options object in addMvc in 
+        services (You can do this in three way):
+
+        public class Startup
+        {
+            public void ConfigureServices(IServiceCollection services)
+            {
+                services.AddMvc(options =>
+                {
+                    options.Filters.Add(new LogResourceFilter());
+                    options.Filters.Add(typeof(LogAsyncResourceFilter));
+                    options.Filters.Add<LogAsyncResourceFilter>();
+                });
+            }
+        }
+
+10. In our app, sometimes we can find an action that have multiple filters, 
+    for example inherit from controller, or globally or have a direct filter, 
+    the order of the filters is important
+
+    [ATTENTION]
+    all filters run based on the order of the filter pipe line that has been 
+    described in section 3, but the order of a same type filters (like Resource
+    filters) depends on the scope of them.
+
+11. By default, filters execute from the broadest scope (global) to the narrowest
+    (action) when running the *Executing method for each stage. The *Executed methods
+    run in reverse order, from the narrowest scope (action) to the broadest (global).
+
+            global scoped filter
+            |                 |
+            controller scoped filter
+            |                 |
+            Base controller filter
+            |                 |
+            Action scope filter
+            |                 |
+
+12. To change this order, your filter can implement the IOrderedFilter interface: 
+
+        public interface IOrderedFilter
+        {
+            int Order {get; };
+        }
+    By default if a filter does not implement the IOrderedFilter the default value
+    is 0, In case of ties between filters the MVC uses 
+
+/// Implementing different filters ////////
+
+    ////////// a. Authorization filters //////////
+
+13. It’s possible to write your own authorization filters by implementing 
+    IAuthorizationFilter or IAsyncAuthorizationFilter, but I strongly advise
+    against it. The ASP.NET Core authorization framework is highly configurable
+    and should meet all your needs. By using authorization framework you can 
+    decorate your actions and controllers with [Authorize] attribute.
+
+14. In its simplest form, adding the [Authorize] attribute to an action or controller
+    or even globally, as in the following listing, means the request must be made by
+    an authenticated user to be allowed to continue. If you’re not logged in, it will
+    short-circuit the pipeline, returning a 401 Unauthorized response to the browser:
+
+        public class RecipeApiController : Controller
+        {
+            public IActionResult Get(int id)
+            {
+                // method body
+            }
+            [Authorize]
+            public IActionResult Edit(
+            int id, [FromBody] UpdateRecipeCommand command)
+            {
+                // method body
+            }
+        }
+
+    ////////// b. Resource filters //////////
+
+15. resource filters are useful when you want to ensure the filter runs early in
+    the pipeline, before model binding. (before model binding and in the end of 
+    pipeline)
+
+16. The ASP.NET Core framework includes a few different implementations of
+    resource filters you can use in your apps, for example:
+
+    a. ConsumesAttribute: Can be used to restrict the allowed formats an action
+        method can accept. If your action is decorated with [Consumes("application/
+        json")] but the client sends the request as XML, then the resource filter will
+        short-circuit the pipeline and return a 415 Unsupported Media Type response.
+    
+    b. DisableFormValueModelBindingAttribute: This filter prevents model binding
+        from binding to form data in the request body. This can be useful if
+        you know an action method will be handling large file uploads that you
+        need to manage manually yourself. The resource filters run before model
+        binding, so you can disable the model binding for a single action in
+        this way.
+
+17. By setting Result property in the context object in filters to IActionResult you
+    can short circuit the pipeline:
+
+        public class FeatureEnabledAttribute : Attribute, IResourceFilter
+        {
+            public bool IsEnabled { get; set; }
+            public void OnResourceExecuting(ResourceExecutingContext context)
+            {
+                if (!IsEnabled)
+                {
+                    context.Result = new BadRequestResult();
+                }
+            }
+            public void OnResourceExecuted(ResourceExecutedContext context) { }
+        }
+
+    ////////// c. Action filters //////////
+
+17. Action filters run just after model binding, before the action method executes.
+    Thanks to this positioning, action filters can access all the arguments that will
+    be used to execute the action method.
+
+18. On top of this, they also run just after the action method has executed and can
+    completely change or replace the IActionResult returned by the action if you want.
+    They can even handle exceptions thrown in the action.
+
+19. The real power of action filters are in the build filters that you make for the 
+    certain app: 
+
+            public class ValidateModelAttribute : ActionFilterAttribute
+            {
+                public override void OnActionExecuting(
+                ActionExecutingContext context)
+                {
+                    if (!context.ModelState.IsValid)
+                    {
+                    // Setting the Result property on context will short 
+                    // circit the pipe line
+                        context.Result =
+                            new BadRequestObjectResult(context.ModelState);
+                    }
+                }   
+            }
+
+[ATTENTION]
+    ActionFilterAttribute class implements IActionFilter and IResultFilter, as well as
+    their async counterparts, so you can override the methods you need as appropriate.
+    This avoids needing to add an unused OnActionExecuted() method, but is entirely
+    optional and a matter of preference.
+
+20. Another example of the custom Action filters: 
+
+    public class EnsureRecipeExistsAtribute : ActionFilterAttribute
+    {
+        public override void OnActionExecuting(
+        ActionExecutingContext context)
+        {
+            // This is known as service location and it considered as
+            // antipattern
+            var service = (RecipeService) context.HttpContext
+                .RequestServices.GetService(typeof(RecipeService));
+            // model binding is already done
+            // ActionArguments is <string, object> dictionary
+            var recipeId = (int) context.ActionArguments["id"];
+            if (!service.DoesRecipeExist(recipeId))
+            {
+                context.Result = new NotFoundResult();
+            }
+        }
+    }
+
+[ATTENTION]
+The context parameter provides access to the HttpContext for the request, which in
+turn lets you access the DI container and use RequestServices.GetService() to
+return an instance of RecipeService, But this is a antipattern.
+
+21. The Controller base class implements IActionFilter and IAsyncActionFilter so,
+    you can override these two interfaces functions, and it will be run for all 
+    your actions in the Controller:
+    public class HomeController : Controller
+    {
+        public override void OnActionExecuting(
+            ActionExecutingContext context)
+        { }
+        public override void OnActionExecuted(
+        ActionExecutedContext context)
+        { }
+    }
+
+[ATTENTION]
+The OnActionExecuting Controller method runs before any other action filters,
+regardless of ordering or scope, and the OnActionExecuted method runs after all 
+other filters.
+
+    ////////// d. Exception filters //////////
+
+22. we can handling exceptions in MVC pipe line, but in some cases that we want 
+    to handle certaing routes or actions or controllers in a certain way, we 
+    can use Exception filters.
+
+23. Exception filters can catch exceptions in three places: 
+
+        a. During model binding or validation
+        b. When the action method is executing
+        c. When an action filter is executing
+
+24. An example of the exception filter:
+
+    public class HandleExceptionAttribute : ExceptionFilterAttribute
+    {
+        public override void OnException(ExceptionContext context)
+        {
+            var error = new
+            {
+                Success = false,
+                Errors = new [] { context.Exception.Message }
+            };
+            context.Result = new ObjectResult(error)
+            {
+                StatusCode = 500
+            };
+            context.ExceptionHandled = true;
+        }
+    }
+
+    ////////// e. Result filters //////////
+
+25. Result filters runs before and after the IActionResult returned by the
+    Action method (or action filters) is executed. typically use result filters
+    to customize the way the IActionResult executes.
+
+26. ASP.NET Core has several result filters built into its framework:
+
+        a. ProducesAttribute: This forces the Web API result to be serialized to a
+            specific output format. For example, decorating your action method with
+            [Produces("application/xml")] forces the formatters to try to format the
+            response as XML, even if the client doesn’t list XML in its Accept header.
+
+        b. FormatFilterAttribute: Decorating an action method with this filter tells 
+            the formatter to look for a route value or query string parameter called
+            format, and to use that to determine the output format. For example, you
+            could call /api/recipe/11?format=json and FormatFilter will format the 
+            response as JSON, or call api/recipe/11?format=xml and get the response
+            as XML.
+
+27. An example of the result filter: 

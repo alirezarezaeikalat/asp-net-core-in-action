@@ -1,0 +1,149 @@
+
+//////// Chapter 8 ////////
+
+1. TagHelpers can be added to html elements or can generate completely customized HTML.
+
+2. a typical form using TagHelpers:
+[ATTENTION]
+The view model and binding model are the same thing in forms, but you should use two
+	different class for each of them to avoid overposting: check this website
+	http://mng.bz/QvfG
+
+public class UserBindingModel       (it is as same as UserViewModel)
+{
+	[Required((ErrorMessage= "The name field is required"))]
+	[StringLength(100, ErrorMessage = "Maximum length is {1}")]
+	[Display(Name = "Your name")]
+	public string FirstName { get; set; }
+	[Required]
+	[StringLength(100, ErrorMessage = "Maximum length is {1}")]
+	[Display(Name = "Last name")]
+	public string LastName { get; set; }
+	[Required]
+	[EmailAddress]
+	public string Email { get; set; }
+	[Phone(ErrorMessage = "Not a valid phone number.")]
+	[Display(Name = "Phone number")]
+	public string PhoneNumber { get; set; }
+}
+	//////////////
+@model UserViewModel
+
+<form asp-action="Index" asp-controller="Checkout" asp-route-id="5">
+	<div class="form-group">
+		<label asp-for="FirstName"></label>
+		<input class="form-control" asp-for="FirstName" />
+		<span asp-validation-for="FirstName"></span>
+	</div>
+	<button type="submit" class="btn btn-primary"> Submit </button>
+</form>
+
+	a. asp-action and asp-controller uses the URL generation feature of routing
+	 to make URL for the raw html form.
+	b. asp-route-* is the tag helper for generation of optional route part
+	c. asp-for in label tag gets the value from DataAnnotation attribute 
+		[display(Name="")] from view model if the property doesn't have [display]
+		the asp-for uses property name 
+	e. asp-for in input takes the value and type from the target property and its
+	 	data annotation
+	f. asp-validation-for takes validation option from the target property
+		 and error message from ModelState property.
+
+3. after using tag helpers in the form, lot of attributes with data-* will be
+	generated for the form for example:
+	data-val="true" data-val-length-max="true" data-val-length="Maximum length is 100" 
+
+4. [ATTENTION]
+	you can use tag helpers beside html attributes, the prior one is html attributes:
+		<input type="color" asp-for="FavoriteColor" />
+		
+		FavoriteColor is a string in view model
+
+5. It is possible to use asp-route="name of route" instead of asp-action and 
+	asp-controller to choose a route
+
+6. Another job of Tag helpers is to prevent CSRF attacts by generating hidden input:
+
+		<input name="__RequestVerificationToken" type="hidden"
+			value="CfDJ8PkYhAINFx1JmYUVIDWbpPyy_TRUNCATED" />
+
+7. data-val-* attributes can be understand by client side libraries like Jquery to have
+ 	client side validation, you have to add scripts at the bottom of the view that has 
+	form in it and using _validationScripts.cshtml:
+
+		@section Scripts{	
+			@Html.Partial("_ValidationScriptsPartial")
+		}
+	the layout has a part that loads Scripts:
+		@RenderSection("Scripts", required: false)  
+
+chek _ValidationScriptsPartial for more information 
+
+8. To use select html tag, you should include two properties in your view model, first
+ IEnumberable<SelectListItem> for displaying options in view model, and one to hold the
+ selected valu:
+
+	a. public IEnumerable<SelectListItem> Items { get; set; }
+		   = new List<SelectListItem>
+			{
+				new SelectListItem{Value= "csharp", Text="C#"},
+				new SelectListItem{Value= "python", Text= "Python"},
+				new SelectListItem{Value= "cpp", Text="C++"},
+				new SelectListItem{Value= "java", Text="Java"},
+				new SelectListItem{Value= "js", Text="JavaScript"},
+				new SelectListItem{Value= "ruby", Text="Ruby"},
+			};
+	b. public string SelectedValue1 { get; set; } : if we can select one value
+	   public IEnumerable<string> MultiValues { get; set; } : if we can select multiple values
+
+9. select tag helpers are asp-for="(does not needs Model. prefix)" and
+ asp-items="needs Model. prefix":
+	To select one value:
+		<select asp-for="SelectedValue1" asp-items="Model.Items"></select>
+	To select multiple values:
+		<select asp-for="MultiValues" asp-items="Model.Items"></select>
+
+10. using asp-validation-summary="All" Tag helper on div to show the summary
+ of all errors in aasocciated with model or its properties:
+
+	<div asp-validation-summary="{None, ModelOnly, All}"></div>
+
+	properties error are the one that violate data annotation but model errors are the
+	ones that we can add in action method, for example:
+
+		[HttpPost]
+		public IActionResult Convert(CurrencyConverterModel model)
+		{
+			if(model.CurrencyFrom == model.CurrencyTo)
+			{
+				ModelState.AddModelError(string.Empty, "Cannot convert currency to itself");
+			}
+			if (!ModelState.IsValid)
+			{
+				return View(model);
+			}
+			//store the valid values somewhere etc
+			return RedirectToAction("Index", "Checkout");
+		}
+
+
+11. using ModelState.AddModelError(string key, string) 
+	to add the error to ModelState for empty key(string.Empty) or specific property.
+
+12. A cache-busting query string adds a query parameter to a URL, such as ?v=1. Browsers
+	will cache the response and use it for subsequent requests to the URL. When the 
+	resource changes, the query string is also changed, for example to ?v=2. Browsers
+	will see this is a request for a new resource, and will make a fresh request.
+
+13. Using asp-append-version="true" tag helper for cache-busting in scripts, img, css:
+	<script src="~/js/site.js" asp-append-version="true"></script>
+
+	in this way the unique query string will be added to the url and this query string
+	would be change if the file being modified. 
+
+12. To show differemt things in different environments in razor templates:
+	<environment include="Testing,Staging">
+		<div class="warning">You are currently on a testing environment</div>
+	</environment>
+
+	The whole element is a tag helper 

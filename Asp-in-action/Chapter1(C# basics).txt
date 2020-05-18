@@ -1,0 +1,59 @@
+1. Delegates:
+	A function can have one or more parameters of different data types, but what if you want to pass a function itself as a parameter?
+	How does C# handle the callback functions or event handler? The answer is - delegate.
+	
+	Example:
+	
+	// defining delegate
+	public delegate void Print(int value);
+
+	// declaring a delegate and assigning the function to it. Now you can pass the function to another function
+	Print printDel = PrintNumber;
+
+2. Anonymous functions:
+	Anonymous function are the type of functions that they don't have any names, when you declaring a delegate you can
+	define function right away
+
+	//defining the deligate
+	public delegate void Print(int value);
+	
+	// declaring a delegate and also declaring the function
+
+	Print printHelperMethod = delegate(int val) { Console.WriteLine("Anonymous method: {0}", val); }, 100);
+
+3. Func:
+	C# 3.0 includes built-in generic delegate types Func and Action, so that you DON'T NEED TO
+	 DEFINE CUSTOM DELEGATES.
+	
+ 	// defining the Func with two input and one output
+	Func<int, int, int> sum;
+	
+	//You can use Func with anonymous functions:
+	Func<int> getRandomNumber = delegate()
+                            {
+                                Random rnd = new Random();
+                                return rnd.Next(1, 100);
+                            };
+
+
+	// You cna use Func with lambda expression
+	Func<int> getRandomNumber = () => new Random().Next(1, 100);
+
+4. Action:
+	An Action type delegate is the same as Func delegate except that the
+	 Action delegate doesn't return a value.
+	
+	// defining the Action with one input 
+	Action<int> printActionDel
+	
+	//You can use Action with anonymous functions:
+	Action<int> printActionDel = delegate(int i)
+                                {
+                                    Console.WriteLine(i);
+                                };
+
+	// You cna use Func with lambda expression
+	Action<int> printActionDel = i => Console.WriteLine(i);
+	
+	
+	 

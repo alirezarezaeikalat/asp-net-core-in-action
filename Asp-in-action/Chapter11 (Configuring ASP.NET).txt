@@ -1,0 +1,333 @@
+
+//////////// Chapter 11 ////////
+1. Configuration is the set of external parameters provided to an
+ application that controls the application’s behavior in some way. 
+ It typically consists of a mixture of settings and secrets
+ that the application will load at runtime.
+
+2. You should normally move anything that you can consider as setting
+ or secret out of your application code. That way, you can easily 
+ CHANGE THESE VALUES AT RUNTIME, without having to recompile your 
+ application.
+
+3. In program.cs file, WebHost is a static class that by calling 
+    CreateDefaultBuilder makes IWebHostBuilder and IWebHostBuilder
+    by calling build create IWebHost and IWebHost by calling Run()
+    run the web application:
+
+    public static void Main(string[] args)
+        {
+            CreateWebHostBuilder(args).Build().Run();
+        }
+
+        public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
+            WebHost.CreateDefaultBuilder(args)
+                .UseStartup<Startup>();
+    }
+
+4. This is the inside of default webhost builder function in program.cs
+        file:
+
+    public static IWebHostBuilder CreateDefaultBuilder(string[] args)
+    {
+        var builder = new WebHostBuilder()
+        .UseKestrel()
+        .UseContentRoot(Directory.GetCurrentDirectory()) //in which file 
+        // it can find configuration or view files
+        .ConfigureAppConfiguration((hostingContext, config) =>
+        {
+            [ATTENTION]
+            // hostingContext is a type of WebHostBuilderContext
+            // and config is a type of IConfigurationBuilder
+            // Configuration provider setup
+        })
+        .ConfigureLogging((hostingContext, logging) =>
+        {
+            logging.AddConfiguration(
+                hostingContext.Configuration.GetSection("Logging"));
+            logging.AddConsole();
+            logging.AddDebug();
+        })
+        .UseIISIntegration()  // you have to run your app behind reverse
+            // proxy server, this ensure to use it behind IIS in windows
+        .UseDefaultServiceProvider((context, options) =>  // use 
+            // default DI container in your app
+        {
+            options.ValidateScopes =
+            context.HostingEnvironment.IsDevelopment();
+        });
+        return builder;
+    }
+
+5. The ASP.NET Core configuration model centers on two main constructs:
+   ConfigurationBuilder and IConfigurationRoot:
+       ConfigurationBuilder describes how to construct the final configuration
+       representation for your app, and IConfigurationRoot holds the
+       configuration values themselves. 
+
+
+6. ConfigureAppConfiguration in CreateDefaultBuilder function sets up a
+    number of default configuration providers:
+
+        a. JSON file provider: Loads settings from an optional JSON file called
+            appsettings.json.
+        b. JSON file provider: Loads settings from an optional environment
+            -specific JSON file called appsettings.ENVIRONMENT.json.
+        c. User Secrets—Loads secrets that are stored safely in development.
+        d. Environment variables: Loads environment variables as 
+            configuration variables. Great for storing secrets in production.
+        e. Command-line arguments: Uses values passed as arguments when
+            you run your app
+
+    [ATTENTION]
+    Configuration keys are not case sensitive.
+
+7. by Default IWebHostBuilder that created by WebHost.CreateDefaultBuilder()
+    provides mentioned default configuration providers, we can change this by
+    making a custom IWebHostBuilder:
+
+    public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
+        new WebHostBuilder()
+            .UseKestrel()
+            .UseContentRoot(Directory.GetCurrentDirectory())
+            .ConfigureAppConfiguration((hostingContext, config) =>
+                                        // config is IConfigurationBuilder type
+            {
+                config.AddJsonFile("sharedSettings.json", optional: true);
+                config.AddJsonFile("appsettings.json", optional: true);
+                config.AddEnvironmentVariables();
+            }))
+            .ConfigureLogging(
+                (hostingContext, logging) => { /* Detail not shown */ })
+            .UseIISIntegration()
+            .UseDefaultServiceProvider(
+                (context, options) =>{ /* Detail not shown */ })
+            .UseStartup<Startup>()
+            
+    
+WebHostBuilder creates an IConfigurationBuilder instance before invoking
+the ConfigureAppConfiguration method. All you need to do is add the 
+configuration providers for your application
+
+8. The WebHostBuilder instance takes care of calling Build(), which generates
+ IConfigurationRoot, which represents your configuration object. This is 
+ then registered as an IConfiguration instance with the DI container,
+ so you can Adds inject it into your classes
+
+9. The ASP.NET Core 2.0 WebHostBuilder registers the configuration object as 
+    an IConfiguration in the DI container, and you can use via dependency 
+    injection in your classes. example of using Configuration information
+    after dependency injection:
+            var zoomLevel = Configuration["MapDisplay:DefaultZoomLevel"];
+	            (you can use __ double underscore instead of :)
+
+
+
+10. the order you add configuration providers to ConfigurationBuilder
+    is important. Later configuration providers can overwrite the values of
+    earlier providers.
+
+11. use environment variables for secrets on your production server
+        and User Secrets locally.
+
+[ATTENTION]
+12. Neither approach is truly secure, in that they don’t store values in an
+    encrypted format. If your machine is compromised, attackers will be able to
+    read the stored values as they’re stored in plaintext. They’re intended to 
+    help you avoid committing secrets to source control.
+    
+13. environment variables are the same for every app on your visual studio on
+    your machine, so it is not useful for development, but The idea behind 
+    User Secrets is to simplify storing PER_APP secrets outside of your
+    app’s project tree.
+
+14. by adding reloadOnChange to Configuration provider, you can build again 
+    IConfigurationRoot in case of any change: 
+
+            // This method is act on IWebHostBuilder:
+        
+            .ConfigureAppConfiguration((hostingContext, config) =>
+                                        // config is IConfigurationBuilder type
+            {
+                .AddJsonFile("sharedSettings.json",
+                                 optional: true
+                                 reloadOnChange: true);
+                .AddJsonFile("appsettings.json", optional: true);
+                .AddEnvironmentVariables();
+            }))
+
+15. The ASP.NET Core configuration system includes a binder, which can take
+    a collection of configuration values and bind them to a strongly typed
+    object, called an options class.
+
+         //// This is the normal way without strongly type: ////
+
+        public class HomeController : Controller
+        {
+            public HomeController(IConfiguration config)
+            {
+                var title = config["HomePageSettings:Title"];
+                var showCopyright = bool.Parse(
+                    config["HomePageSettings:ShowCopyright"]);
+            }
+        }
+
+        /// This is the way using POCO objects for settings
+    a.
+        public class HomeController : Controller
+        {
+            public HomeController(IOptions<HomePageSettings> options)
+            {
+                HomePageSettings settings = options.Value;
+                var title = settings.Title;
+                var showCopyright = settings.ShowCopyright;
+            }
+        }
+    
+    IOptions<T> interface is a simple interface with a single property,
+     Value
+    
+        /// HomePageSettings
+    b. 
+            public class HomePageSettings
+            {
+                public string Title { get; set; }
+                public bool ShowCopyright { get; set; }
+            }
+
+        /// Registerin POCO objects 
+
+    c. Just like services for dependency injection, we have to register,
+        these settings POCO objects, to give DI how to fill these objects.
+        We use Configure<T> function:
+
+        public IConfiguration Configuration { get; }
+        public void ConfigureServices(IServiceCollection services)
+        {
+            services.Configure<MapDisplaySettings>(
+                Configuration.GetSection("MapDisplay"));
+
+            services.Configure<HomePageSettings>(
+                Configuration.GetSection("HomePageSettings"));
+        }
+
+    [ATTENTION] 
+        add Microsoft.Extensions.Options.ConfigurationExtensions NuGet
+        package to your app for using Configure<T> function
+
+    [ATTENTION]
+        here’s one catch with this setup: you can’t use the reloadOnChange
+        parameter to reload your strongly typed options classes when using
+        IOptions<T>. IConfigurationRoot will still be reloaded if you edit 
+        your appsettings.json files, but it won’t propagate to your options
+        class.
+
+16. if you modify the underlying configuration file from which it was loaded,
+    for example appsettings.json. This is often not a problem (you shouldn’t
+    be modifying files on live production servers anyway!), but if you need
+    this functionality, you can use the IOptionsSnapshot<T> interface
+
+     public class HomeController : Controller
+        {
+            public HomeController(IOptionsSnapshot<HomePageSettings> options)
+            {
+                HomePageSettings settings = options.Value;
+                var title = settings.Title;
+                var showCopyright = settings.ShowCopyright;
+            }
+        }
+
+    everything else is the same process as IOptions<T>
+
+17. Your setting classes should have certain features:
+
+        a. General features for class to binder loop through your class:   
+            a.1 Be non-abstract
+            a.2 Have a default (public parameterless) constructor
+
+        b. properties features:
+            b.1 Is public
+            b.2 Has a getter—the binder won’t write set-only properties
+            b.3 Has a setter or a non-null value
+            b.4 Is not an indexer
+
+        
+
+18. In this section, we answer three questions:
+        a. How does your app identify which environment it’s running in?
+        b. How do you load different configuration values based on the
+            current environment?
+        c. How can you change the environment for a particular machine?
+
+
+///////////////   This section is for question a //////
+
+19. The WebHostBuilder created in Program.cs looks for a magic environment 
+    variable called ASPNETCORE_ENVIRONMENT and uses it to create an
+    IHostingEnvironment object:
+        the ASPNETCORE_ENVIRONMENT sets to EnvironmentName in
+        IHostingEnvironment object
+
+
+            public interface IHostingEnvironment
+            {
+                string EnvironmentName { get; set; }   
+                string ApplicationName { get; set; }
+                string WebRootPath { get; set; }
+                IFileProvider WebRootFileProvider { get; set; }
+                string ContentRootPath { get; set; }
+                IFileProvider ContentRootFileProvider { get; set; }
+            }
+
+    [ATTENTION] you can use any value for ASPNETCORE_ENVIRONMENT but you have 
+    to stick to three type:
+        a. Development       b. Staging        c. Production
+    
+    If you stick to these three values, you can use ASP.NET core helper 
+    functions: 
+        a. IHostingEnvironment.IsDevelopment()
+        b. IHostingEnvironment.IsStaging()
+        c. IHostingEnvironment.IsProduction()
+        d. IHostingEnvironment.IsEnvironment(string environmentName)
+
+20. The environment tag helper, get the information from IHostingEnvironment
+    object: 
+        <environment include="Testing,Staging">
+            <div class="warning">You are currently on a testing environment</div>
+        </environment>
+
+
+////////////////     This section is for question b ////////
+
+21. The EnvironmentName value in IHostingEnvironment is determined early in
+    the process of bootstrapping your application, before your 
+    ConfigurationBuilder is created. This means you can dynamically change
+    which configuration providers are added to the builder:
+
+    public static IWebHostBuilder CreateWebHostBuilder(string[] args) =>
+        new WebHostBuilder()
+            .UseKestrel()
+            .UseContentRoot(Directory.GetCurrentDirectory())
+            .ConfigureAppConfiguration((hostingContext, config) =>
+                        // config is IConfigurationBuilder type
+                        // hostingContext is a type of WebHostBuilderContext
+            {
+                var env = hostingContext.HostingEnvironment;
+                config.AddJsonFile("appsettings.json", optional: false);
+                config.AddJsonFile(
+                    $"appsettings.{env.EnvironmentName}.json",
+                    optional: true);
+                config.AddEnvironmentVariables();
+            }))
+            .ConfigureLogging(
+                (hostingContext, logging) => { /* Detail not shown */ })
+            .UseIISIntegration()
+            .UseDefaultServiceProvider(
+                (context, options) =>{ /* Detail not shown */ })
+            .UseStartup<Startup>()
+
+/////////////// This section is for question c ////////////
+
+22. If your ASP.NET Core application can’t find an ASPNETCORE_ENVIRONMENT
+    environment variable when it starts up, it defaults to a production
+    environment 
