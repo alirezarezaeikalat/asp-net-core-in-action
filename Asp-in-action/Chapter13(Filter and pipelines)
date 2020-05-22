@@ -319,7 +319,8 @@ other filters.
             {
                 StatusCode = 500
             };
-            context.ExceptionHandled = true;
+            // to prevent propagating out of MVC middleware
+            context.ExceptionHandled = true; 
         }
     }
 
@@ -328,6 +329,12 @@ other filters.
 25. Result filters runs before and after the IActionResult returned by the
     Action method (or action filters) is executed. typically use result filters
     to customize the way the IActionResult executes.
+
+26. If the pipeline is short-circuited by setting context.Result, the
+    result filter stage won’t be run, but IActionResult will still be executed to
+    generate the response. The one exception to this rule is action filters—these
+    only short-circuit the action execution, as you saw in figure 13.2, and so result
+    filters run as normal,
 
 26. ASP.NET Core has several result filters built into its framework:
 
@@ -344,3 +351,49 @@ other filters.
             as XML.
 
 27. An example of the result filter: 
+
+        public class AddLastModifedHeaderAttribute : ResultFilterAttribute
+        {
+            public override void OnResultExecuting(
+                ResultExecutingContext context)
+            {
+                if (context.Result is OkObjectResult result
+                && result.Value is RecipeDetailViewModel detail)
+                {
+                    var viewModelDate = detail.LastModified;
+                    context.HttpContext.Response
+                    .GetTypedHeaders().LastModified = viewModelDate;
+                }
+            }
+        }
+
+28. For checking the filter pipeline short-circuiting check the picture in this 
+    folder.
+
+29. To use DI in filters, you have to make two classes:
+
+        a. your filter: 
+
+            public class AddLastModifedHeaderAttribute : ResultFilterAttribute
+            {
+                public override void OnResultExecuting(
+                ResultExecutingContext context)
+                {
+                    if (context.Result is OkObjectResult result
+                    && result.Value is RecipeDetailViewModel detail)
+                    {
+                        var viewModelDate = detail.LastModified;
+                        context.HttpContext.Response
+                            .GetTypedHeaders().LastModified = viewModelDate;
+                    }
+                }
+                public void OnActionExecuted(ActionExecutedContext context) { }
+            }
+
+        b. making the attribute: 
+
+                public class EnsureRecipeExistsAttribute : TypeFilterAttribute
+                {
+                    public EnsureRecipeExistsAttribute()
+                    : base(typeof(EnsureRecipeExistsFilter)) {}
+                }
