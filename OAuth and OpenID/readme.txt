@@ -81,3 +81,6 @@ access token.
 
     when you request for login to the identity (authorization server) it gives back
     access token and token id and you can set the id token information to 
+
+8. for native mobile apps, we have to use openID connect code flow beside 
+    PKCE (proof key for code exchange) there is library app off that abstract all this
