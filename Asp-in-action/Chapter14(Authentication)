@@ -1,0 +1,50 @@
+1. The HttpContext object also exposes the current principal for a request as the
+    User property (HttpContext.User)
+    (You can think of the principal as the user of your app)
+
+2. In Asp.net core principals are implemented as ClaimsPrincipals, which has a 
+   collection of claims associated with it.
+   (A claim is a single piece of information about a principal, which
+    consists of a claim type and an optional value.)
+
+3. The workflow of the authentication(check the picture):
+
+    a. The client sends an identifier and secret to the app, which identify the current
+       user. For example, you could send an email (identifier) and a password (secret).
+    b. The app verifies that the identifier corresponds to a user known by the app and
+       that the corresponding secret is correct.
+    c. If the identifier and secret are valid, the app can set the principal for the 
+       current request, but it also needs a way of storing these details for subsequent
+       requests. For traditional web apps, this is typically achieved by storing an
+       encrypted version of the user principal in a cookie
+
+4. After sign in process, the principal stores in cookie, and any subsequent 
+   requests will be associated with this cookie, when a request come to MVC
+   middleware, the HttpContext.User is unknown before authentication middleware,
+   in authentication middleware, the authentication sevice will be called to check
+   the cookie, if the cookie is valid, the HttpContext.User will be set.
+   (check the picture)
+
+5. This workflow of authentication is for traditional web apps, for client apps 
+    and micro service architectures, you should have multiple authentication system
+    to reach different part of your application, and in this way there will be lot
+    of code duplication, and problem with cookies in case of using multiple domain.
+
+[ATTENTION] [VERY IMPORTANT]
+6. The typical approach is to extract the code that’s common to all of the apps
+   and APIs, and move it to an identity provider.
+
+7. Instead of signing in to an app directly, the app redirects to an identity provider
+app. The user signs in to this identity provider, which passes bearer tokens back to 
+the client that indicate who the user is and what they’re allowed to access. The 
+clients and apps can pass these tokens to the APIs, to provide information about the
+logged-in user, without needing to re-authenticate or manage users directly.
+
+8. ASP.NET Core supports architectures like this, and for consuming
+    issued bearer tokens, but it doesn’t include support for issuing those tokens.
+    That means you’ll need to use another library or service for the identity 
+    provider.  
+
+9. (https://github.com/openiddict) and IdentityServer4 (http://docs.identityserver.io),
+    it’s perfectly possible to write your own identity provider to serve bearer tokens
+    that will be consumed by an application.
