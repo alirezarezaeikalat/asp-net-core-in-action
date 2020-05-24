@@ -2,10 +2,10 @@
 
     yelp(example of app)            ----->                  accounts.google.com    
     (connect with google)      (client give Redirect 
-                                URI and                   (user and pass for google)
-                                response type: code             |
-                                it also give the scope          |
-                                and client id and client        |
+                                1.URI and                   (user and pass for google)
+                                2.response type: code           |
+                                3.it also give the scope        |
+                                4.and client id and client      |
                                 key)                            |           
                                                                 |
                                                                 |
