@@ -1,0 +1,94 @@
+1. The HttpContext object also exposes the current principal for a request as the
+    User property (HttpContext.User)
+    (You can think of the principal as the user of your app)
+
+2. In Asp.net core principals are implemented by ClaimsPrincipals class, which has a 
+   collection of claims associated with it.
+   (A claim is a single piece of information about a principal, which
+    consists of a claim type and an optional value.)
+
+3. The workflow of the authentication(check the picture):
+
+    a. The client sends an identifier and secret to the app, which identify the current
+       user. For example, you could send an email (identifier) and a password (secret).
+    b. The app verifies that the identifier corresponds to a user known by the app and
+       that the corresponding secret is correct.
+    c. If the identifier and secret are valid, the app can set the principal for the 
+       current request, but it also needs a way of storing these details for subsequent
+       requests. For traditional web apps, this is typically achieved by storing an
+       encrypted version of the user principal in a cookie
+
+4. The process of ASP.NET identity is the series of steps from the moment you
+    submit the login form, to the point the redirect is returned to the browser:
+
+      a. When the request first arrives, Kestrel creates an anonymous user principal
+         and assigns it to the HttpContext.User property.
+
+      b. The request is then routed to a normal MVC controller, AccountController,
+         which reads the email and password from the request. 
+
+      c. The meaty work inside AccountController happens inside the SignInManager
+         service (this sevice is provided by ASP.NET identity). This is responsible
+         for loading a user entity from the database with the provided username and
+         validating that the password they provided is correct.
+
+      d. If the password is correct, SignInManager creates a new ClaimsPrincipal 
+         from the user entity it loaded from the database and adds the appropriate
+         claims, such as the email. It then replaces the old, anonymous, 
+         HttpContext.User principal with the new, authenticated principal.
+
+      e. Finally, SignInManager serializes the principal, encrypts it, and stores 
+         it as a cookie.
+
+5. The process of ASP.NET core identity for any subsequent requests after
+    the login has happened: 
+
+         a. When a request containing the authentication cookie is received, 
+            Kestrel creates the default, unauthenticated, anonymous principal and
+            assigns it to the HttpContext.User principal.
+
+         b. The authentication middleware calls the authentication service,
+            which deserialize the user principal from the cookie and confirms
+            it is valid. 
+       
+6. This workflow of authentication is for traditional web apps, for client apps 
+    and micro service architectures, you should have multiple authentication system
+    to reach different part of your application, and in this way there will be lot
+    of code duplication, and problem with cookies in case of using multiple domain.
+
+[ATTENTION] [VERY IMPORTANT]
+7. The typical approach is to extract the code that’s common to all of the apps
+   and APIs, and move it to an identity provider.
+
+8. Instead of signing in to an app directly, the app redirects to an identity provider
+app. The user signs in to this identity provider, which passes bearer tokens back to 
+the client that indicate who the user is and what they’re allowed to access. The 
+clients and apps can pass these tokens to the APIs, to provide information about the
+logged-in user, without needing to re-authenticate or manage users directly.
+
+8. ASP.NET Core supports architectures like this, and for consuming
+    issued bearer tokens, but it doesn’t include support for issuing those tokens.
+    That means you’ll need to use another library or service for the identity 
+    provider.  
+
+9. (https://github.com/openiddict) and IdentityServer4 (http://docs.identityserver.io),
+    it’s perfectly possible to write your own identity provider to serve bearer tokens
+    that will be consumed by an application.
+
+10. Asp.net core identify is just a framework for talking to the database of your users
+    check the third picture of the Chapter 14. 
+
+10. You have to use scaffolding for making identify files, unless they will be in 
+   Razor class, and you can't change them. check this link:
+   https://docs.microsoft.com/en-us/aspnet/core/security/authentication/scaffold-identity?view=aspnetcore-3.1&tabs=netcore-cli
+
+
+11. you have two types of files when you use Asp.NET core identity:
+      
+      a. Account-files: for registering as a new user, logging in, and sending password
+         reset emails.
+      b. ManageController—Used for managing your user account when logged in.
+         Changing user details, password, and enabling two-factor authentication.
+   
+
+
