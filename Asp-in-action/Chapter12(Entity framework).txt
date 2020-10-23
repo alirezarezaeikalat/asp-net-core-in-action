@@ -157,6 +157,8 @@ apply the migration to the database:
 16. for example if you change one entity in your model, you have to first add new 
     migration and then update the database:
 
+        dotnet ef database update
+
         a. dotnet ef migrations add ExtraRecipeFields
         b. dotnet ef database update
 

@@ -89,6 +89,63 @@ logged-in user, without needing to re-authenticate or manage users directly.
          reset emails.
       b. ManageController—Used for managing your user account when logged in.
          Changing user details, password, and enabling two-factor authentication.
+
+12. Check this link, it is very good to understand asp.net core identity: 
+
+      https://devblogs.microsoft.com/aspnet/aspnetcore-2-1-identity-ui/
+
+13. Asp.net core identity provides, IdentityUser class that you can inherit from
+    IdentityUser has some fields that we can use, and we can add to it by inheritance: 
+
+      public class ApplicationUser : IdentityUser
+      {
+         public string Name { get; set; }
+         public int Age { get; set; }
+      }
    
+14. Then we have to update the ApplicationDbContext to inherit from 
+    IdentityContext<ApplicationUser> :
+
+      public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
+    {
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+            : base(options)
+        {
+        }
+
+15. Then change the startup class to use new ApplicationUser: 
+
+      services.AddIdentity<ApplicationUser, IdentityRole>(options => options.Stores.MaxLengthForKeys = 128)
+         .AddEntityFrameworkStores<ApplicationDbContext>()
+         .AddDefaultUI()
+         .AddDefaultTokenProviders();
+   
+
+16. when we use asp.net core identity ApplicationDbContext.cs file is just a class that
+   that inherits from IdentityDbContext, this IdentityDbContext is also inherits from 
+   something else, but it control the entity of users, the easiest way to see the 
+   user entity and ApplicationDbContext is to update the database:
+
+      dotnet ef database update
+
+17. We have AspNetUserRoles, AspNetRoles, and AspNetRoleClaims tables, these tables 
+    are created for legacy reasons.
+
+18. AspNetUsers table has claims that defined in IdentityUser. any additional claims
+    will be added to AspNetUserClaims, this table has many to one relation with 
+    AspNetUsers table.
+
+19. AspNetUserLogins and AspNetUserTokens—These are related to third-party logins.
+    When configured, these let users sign in with a Google or Facebook account
+    (for example), instead of creating a password on your app.
+
+20. Asp.Net core identify manage the process of registering, logging and everything else
+    with two services: 
+
+         a. UserManager<IdentityUser>
+
+         b. SignInManager<IdentityUser>
+
+
 
 
