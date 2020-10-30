@@ -56,7 +56,7 @@ so we need to register the services.
 	a. The class has a "single" and "valid" constructor.
 	b. "Vaild" means: all its constructor arguments already registered 
 	with container or have Default values. for example if, there is
-	string in construtor argument of service, you can register them,
+	string in construtor argument of service, you can't register them,
 	so you have to provide DEFAULT Value:
 
 	services.AddSingleton(

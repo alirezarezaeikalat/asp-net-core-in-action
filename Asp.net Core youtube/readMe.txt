@@ -465,3 +465,32 @@ and we can use it like this:
             public DbSet<Employee> Employees {get; set;}    
         }
 
+60. In order to use EF core in our app controller classes, we have to register created custom DbContext class for dependency injection,
+    we do this in ConfigureServices function in the startup class, (we can do this with two fucntion):
+
+
+            public void ConfigureServices(IServiceCollection services)
+            {
+                services.AddDbContextPool<AppDbContext>(options => options
+                    .UseSqlServer(_config.GetConnectionString("EmployeeDbConnection"))));
+                //services.AddDbContext<AppDbContext> (options => options.UseSqlServer());
+            }
+
+options in this function is type of DbContextOptionsBuilder and when dependency injection wants to create the AppDbContext instance 
+    it uses this DbContextOptionsBuilder to create DbContextOptions instance for AppDbContext constructor.
+
+[ATTENTION] There is a difference between AddDbContextPool and AddDbContext, AddDbContextPool looks, if we have the AppDbContext 
+    instance it will not create new one, but AddDbContext create new instance each time.
+
+61. we have to define connection string in UseSqlServer function, normally we define our connection string in appsettings.json
+    file. (if you run your SqlServer on mac, with container you have to make a network for the container ):
+
+        docker network create test_network
+
+        docker container run -p 1433:1433 -d --name mssql -v mssql_data:/var/opt/mssql -e SA_PASSWORD=********** -e ACCEPT_EULA=Y --network=test_network microsoft/mssql-server-linux
+
+62. We can use Integrated windows authentication instead of SQL server authentication in 3 ways, in the connection string: 
+
+        Trusted_Connection=true
+        Integrated Security=SSPI
+        Integrated Security=true
